@@ -1,0 +1,2 @@
+mysql:
+  dsn: "cp_65011212046:65011212046@csmsu@tcp(202.28.34.197:3306)/cp_65011212046?collation=utf8mb4_unicode_ci&parseTime=true"
