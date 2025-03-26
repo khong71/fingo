@@ -19,3 +19,4 @@ type Customer struct {
 func (m *Customer) TableName() string {
 	return "customer"
 }
+
