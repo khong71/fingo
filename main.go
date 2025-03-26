@@ -63,6 +63,49 @@ func main() {
 		c.JSON(http.StatusOK, customerResponse)
 	})
 
+	// สร้าง endpoint สำหรับการแก้ไขที่อยู่
+	r.PUT("/update_address", func(c *gin.Context) {
+		var updateRequest struct {
+			Email   string `json:"email"`
+			Address string `json:"address"`
+		}
+
+		// รับข้อมูลจาก request body
+		if err := c.ShouldBindJSON(&updateRequest); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+			return
+		}
+
+		// ตรวจสอบการยืนยันตัวตนและค้นหาลูกค้าจากอีเมล
+		var customer model.Customer
+		if err := db.Where("email = ?", updateRequest.Email).First(&customer).Error; err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Customer not found"})
+			return
+		}
+
+		// อัปเดตที่อยู่ของลูกค้า
+		customer.Address = updateRequest.Address
+		if err := db.Save(&customer).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update address"})
+			return
+		}
+
+		// แปลงข้อมูลลูกค้าเป็น CustomerResponse และส่งกลับ
+		customerResponse := model.CustomerResponse{
+			CustomerID:  customer.CustomerID,
+			FirstName:   customer.FirstName,
+			LastName:    customer.LastName,
+			Email:       customer.Email,
+			PhoneNumber: customer.PhoneNumber,
+			Address:     customer.Address,
+			CreatedAt:   customer.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:   customer.UpdatedAt.Format("2006-01-02 15:04:05"),
+		}
+
+		// ส่งข้อมูลลูกค้าหลังจากอัปเดตที่อยู่
+		c.JSON(http.StatusOK, customerResponse)
+	})
+
 	// เริ่มต้นเซิร์ฟเวอร์ที่พอร์ต 8080
 	r.Run(":8080")
 }
