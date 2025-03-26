@@ -222,6 +222,65 @@ func main() {
 			"product_id": newProduct.ProductID,
 		})
 	})
+	
+	// สำหรับเพิ่ม Cart
+	r.POST("/add_cart", func(c *gin.Context) {
+		var cartRequest struct {
+			CustomerID int    `json:"customer_id"`
+			CartName   string `json:"cart_name"`
+		}
+		// อ่านข้อมูล JSON
+		if err := c.ShouldBindJSON(&cartRequest); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+			return
+		}
+		// เรียกฟังก์ชันเพิ่มข้อมูล Cart
+		cart, err := addCart(db, cartRequest.CustomerID, cartRequest.CartName)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create cart"})
+			return
+		}
+		// ส่งข้อมูล Cart ที่สร้างกลับไป
+		c.JSON(http.StatusOK, gin.H{
+			"cart_id":     cart.CartID,
+			"customer_id": cart.CustomerID,
+			"cart_name":   cart.CartName,
+			"created_at":  cart.CreatedAt,
+			"updated_at":  cart.UpdatedAt,
+		})
+	})
+
+	//สำหรับเพิ่มสินค้าในตะกร้า
+	r.POST("/add_cart_item", func(c *gin.Context) {
+		var cartItemRequest struct {
+			CartID    int `json:"cart_id"`
+			ProductID int `json:"product_id"`
+			Quantity  int `json:"quantity"`
+		}
+
+		// อ่านข้อมูล JSON
+		if err := c.ShouldBindJSON(&cartItemRequest); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+			return
+		}
+
+		// เรียกฟังก์ชันเพิ่มข้อมูล CartItem
+		cartItem, err := addCartItem(db, cartItemRequest.CartID, cartItemRequest.ProductID, cartItemRequest.Quantity)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add item to cart"})
+			return
+		}
+
+		// ส่งข้อมูล CartItem ที่สร้างกลับไป
+		c.JSON(http.StatusOK, gin.H{
+			"cart_item_id": cartItem.CartItemID,
+			"cart_id":      cartItem.CartID,
+			"product_id":   cartItem.ProductID,
+			"quantity":     cartItem.Quantity,
+			"created_at":   cartItem.CreatedAt,
+			"updated_at":   cartItem.UpdatedAt,
+		})
+	})
 
 	// เริ่มต้นเซิร์ฟเวอร์ที่พอร์ต 8080
 	r.Run(":8080")
@@ -257,4 +316,33 @@ func hashPassword(password string) (string, error) {
 func checkPasswordHash(password, hash string) error {
 	// ใช้ bcrypt.CompareHashAndPassword เพื่อตรวจสอบว่า hash กับรหัสผ่านตรงกันหรือไม่
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+}
+
+// ฟังก์ชันเพิ่มข้อมูล Cart
+func addCart(db *gorm.DB, customerID int, cartName string) (*model.Cart, error) {
+	cart := model.Cart{
+		CustomerID: customerID,
+		CartName:   cartName,
+	}
+
+	// บันทึกข้อมูลลงฐานข้อมูล
+	if err := db.Create(&cart).Error; err != nil {
+		return nil, err
+	}
+	return &cart, nil
+}
+
+// ฟังก์ชันเพิ่มสินค้าลงใน CartItem
+func addCartItem(db *gorm.DB, cartID, productID, quantity int) (*model.CartItem, error) {
+	cartItem := model.CartItem{
+		CartID:    cartID,
+		ProductID: productID,
+		Quantity:  quantity,
+	}
+
+	// บันทึกข้อมูลลงฐานข้อมูล
+	if err := db.Create(&cartItem).Error; err != nil {
+		return nil, err
+	}
+	return &cartItem, nil
 }
