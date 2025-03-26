@@ -26,7 +26,7 @@ func main() {
 	// ตั้งค่า Gin
 	r := gin.Default()
 
-	// สร้าง endpoint สำหรับการเข้าสู่ระบบ
+	// สำหรับการเข้าสู่ระบบ
 	r.POST("/auth/login", func(c *gin.Context) {
 		var loginRequest struct {
 			Email    string `json:"email"`
@@ -62,7 +62,7 @@ func main() {
 		c.JSON(http.StatusOK, customerResponse)
 	})
 
-	// สร้าง endpoint สำหรับการแก้ไขที่อยู่
+	// สำหรับการแก้ไขที่อยู่
 	r.PUT("/update_address", func(c *gin.Context) {
 		var updateRequest struct {
 			Email   string `json:"email"`
@@ -105,9 +105,7 @@ func main() {
 		c.JSON(http.StatusOK, customerResponse)
 	})
 
-
-
-	// สร้าง endpoint สำหรับการสมัครสมาชิก (การเพิ่มข้อมูลลูกค้า)
+	// เพิ่มลูกค้า
 	r.POST("/auth/register", func(c *gin.Context) {
 		var registerRequest struct {
 			FirstName string `json:"first_name"`
@@ -133,12 +131,12 @@ func main() {
 
 		// สร้างลูกค้ารายใหม่
 		customer := model.Customer{
-			FirstName: registerRequest.FirstName,
-			LastName:  registerRequest.LastName,
-			Email:     registerRequest.Email,
-			Password:  hashedPassword, // เก็บรหัสผ่านที่แฮชแล้ว
-			PhoneNumber:	registerRequest.Phone,
-			Address:   registerRequest.Address,
+			FirstName:   registerRequest.FirstName,
+			LastName:    registerRequest.LastName,
+			Email:       registerRequest.Email,
+			Password:    hashedPassword, // เก็บรหัสผ่านที่แฮชแล้ว
+			PhoneNumber: registerRequest.Phone,
+			Address:     registerRequest.Address,
 		}
 
 		// เก็บข้อมูลผู้ใช้ใหม่ในฐานข้อมูล
@@ -162,9 +160,62 @@ func main() {
 		// ส่งข้อมูลลูกค้าหลังจากลงทะเบียน
 		c.JSON(http.StatusOK, customerResponse)
 	})
+
+
+	// สำหรับการเปลี่ยนรหัสผ่าน
+	r.PUT("/change_password", func(c *gin.Context) {
+		var changePasswordRequest struct {
+			Email          string `json:"email"`
+			OldPassword    string `json:"old_password"`
+			NewPassword    string `json:"new_password"`
+		}
+
+		// รับข้อมูลจาก request body
+		if err := c.ShouldBindJSON(&changePasswordRequest); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+			return
+		}
+
+		// ค้นหาลูกค้าจากอีเมล
+		var customer model.Customer
+		if err := db.Where("email = ?", changePasswordRequest.Email).First(&customer).Error; err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Customer not found"})
+			return
+		}
+
+		// ตรวจสอบรหัสผ่านเก่าที่แฮชแล้ว
+		if err := checkPasswordHash(changePasswordRequest.OldPassword, customer.Password); err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Incorrect old password"})
+			return
+		}
+
+		// แฮชรหัสผ่านใหม่
+		hashedNewPassword, err := hashPassword(changePasswordRequest.NewPassword)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash new password"})
+			return
+		}
+
+		// อัพเดตรหัสผ่านใหม่ในฐานข้อมูล
+		customer.Password = hashedNewPassword
+		if err := db.Save(&customer).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
+			return
+		}
+
+		// ส่งข้อมูลกลับว่าเปลี่ยนรหัสผ่านสำเร็จ
+		c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
+	})
+
+
+
+
+
+
+
+
 	// เริ่มต้นเซิร์ฟเวอร์ที่พอร์ต 8080
 	r.Run(":8080")
-
 
 }
 
