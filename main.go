@@ -12,16 +12,7 @@ import (
 )
 
 // โครงสร้างข้อมูลที่ไม่รวมรหัสผ่าน
-type CustomerResponse struct {
-	CustomerID  int    `json:"customer_id"`
-	FirstName   string `json:"first_name"`
-	LastName    string `json:"last_name"`
-	Email       string `json:"email"`
-	PhoneNumber string `json:"phone_number"`
-	Address     string `json:"address"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
-}
+
 
 func main() {
 	// เชื่อมต่อกับฐานข้อมูล MySQL
@@ -57,7 +48,7 @@ func main() {
 		}
 
 		// แปลงข้อมูลลูกค้าเป็น CustomerResponse และส่งกลับ
-		customerResponse := CustomerResponse{
+		customerResponse := model.CustomerResponse{
 			CustomerID:  customer.CustomerID,
 			FirstName:   customer.FirstName,
 			LastName:    customer.LastName,

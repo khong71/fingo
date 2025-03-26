@@ -20,3 +20,13 @@ func (m *Customer) TableName() string {
 	return "customer"
 }
 
+type CustomerResponse struct {
+	CustomerID  int    `json:"customer_id"`
+	FirstName   string `json:"first_name"`
+	LastName    string `json:"last_name"`
+	Email       string `json:"email"`
+	PhoneNumber string `json:"phone_number"`
+	Address     string `json:"address"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}
