@@ -32,20 +32,17 @@ func main() {
 			Email    string `json:"email"`
 			Password string `json:"password"`
 		}
-
 		// รับข้อมูลจาก request body
 		if err := c.ShouldBindJSON(&loginRequest); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 			return
 		}
-
 		// เรียกฟังก์ชัน login เพื่อตรวจสอบข้อมูลผู้ใช้
 		customer, err := login(db, loginRequest.Email, loginRequest.Password)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
 		}
-
 		// แปลงข้อมูลลูกค้าเป็น CustomerResponse และส่งกลับ
 		customerResponse := model.CustomerResponse{
 			CustomerID:  customer.CustomerID,
@@ -57,7 +54,6 @@ func main() {
 			CreatedAt:   customer.CreatedAt.Format("2006-01-02 15:04:05"),
 			UpdatedAt:   customer.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
-
 		// ส่งข้อมูลลูกค้ากลับ โดยไม่มี key ข้างหน้า
 		c.JSON(http.StatusOK, customerResponse)
 	})
@@ -68,27 +64,23 @@ func main() {
 			Email   string `json:"email"`
 			Address string `json:"address"`
 		}
-
 		// รับข้อมูลจาก request body
 		if err := c.ShouldBindJSON(&updateRequest); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 			return
 		}
-
 		// ตรวจสอบการยืนยันตัวตนและค้นหาลูกค้าจากอีเมล
 		var customer model.Customer
 		if err := db.Where("email = ?", updateRequest.Email).First(&customer).Error; err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Customer not found"})
 			return
 		}
-
 		// อัปเดตที่อยู่ของลูกค้า
 		customer.Address = updateRequest.Address
 		if err := db.Save(&customer).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update address"})
 			return
 		}
-
 		// แปลงข้อมูลลูกค้าเป็น CustomerResponse และส่งกลับ
 		customerResponse := model.CustomerResponse{
 			CustomerID:  customer.CustomerID,
@@ -100,7 +92,6 @@ func main() {
 			CreatedAt:   customer.CreatedAt.Format("2006-01-02 15:04:05"),
 			UpdatedAt:   customer.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
-
 		// ส่งข้อมูลลูกค้าหลังจากอัปเดตที่อยู่
 		c.JSON(http.StatusOK, customerResponse)
 	})
@@ -115,20 +106,17 @@ func main() {
 			Phone     string `json:"phone"`
 			Address   string `json:"address"`
 		}
-
 		// รับข้อมูลจาก request body
 		if err := c.ShouldBindJSON(&registerRequest); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 			return
 		}
-
 		// แฮชรหัสผ่านที่ได้รับจาก request
 		hashedPassword, err := hashPassword(registerRequest.Password)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
 			return
 		}
-
 		// สร้างลูกค้ารายใหม่
 		customer := model.Customer{
 			FirstName:   registerRequest.FirstName,
@@ -138,13 +126,11 @@ func main() {
 			PhoneNumber: registerRequest.Phone,
 			Address:     registerRequest.Address,
 		}
-
 		// เก็บข้อมูลผู้ใช้ใหม่ในฐานข้อมูล
 		if err := db.Create(&customer).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register customer"})
 			return
 		}
-
 		// ส่งข้อมูลลูกค้ากลับโดยไม่รวมรหัสผ่าน
 		customerResponse := model.CustomerResponse{
 			CustomerID:  customer.CustomerID,
@@ -156,18 +142,16 @@ func main() {
 			CreatedAt:   customer.CreatedAt.Format("2006-01-02 15:04:05"),
 			UpdatedAt:   customer.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
-
 		// ส่งข้อมูลลูกค้าหลังจากลงทะเบียน
 		c.JSON(http.StatusOK, customerResponse)
 	})
 
-
 	// สำหรับการเปลี่ยนรหัสผ่าน
 	r.PUT("/change_password", func(c *gin.Context) {
 		var changePasswordRequest struct {
-			Email          string `json:"email"`
-			OldPassword    string `json:"old_password"`
-			NewPassword    string `json:"new_password"`
+			Email       string `json:"email"`
+			OldPassword string `json:"old_password"`
+			NewPassword string `json:"new_password"`
 		}
 
 		// รับข้อมูลจาก request body
@@ -207,12 +191,37 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
 	})
 
-
-
-
-
-
-
+	//สำหรับเพิ่มสินค้า
+	r.POST("/add_product", func(c *gin.Context) {
+		var productRequest struct {
+			ProductName   string `json:"product_name"`
+			Description   string `json:"description"`
+			Price         string `json:"price"`
+			StockQuantity int    `json:"stock_quantity"`
+		}
+		// รับข้อมูลจาก request body
+		if err := c.ShouldBindJSON(&productRequest); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+			return
+		}
+		// สร้างสินค้าใหม่
+		newProduct := model.Product{
+			ProductName:   productRequest.ProductName,
+			Description:   productRequest.Description,
+			Price:         productRequest.Price,
+			StockQuantity: productRequest.StockQuantity,
+		}
+		// บันทึกลงฐานข้อมูล
+		if err := db.Create(&newProduct).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to insert product"})
+			return
+		}
+		// ส่งข้อมูลสินค้ากลับ
+		c.JSON(http.StatusOK, gin.H{
+			"message":    "Product added successfully",
+			"product_id": newProduct.ProductID,
+		})
+	})
 
 	// เริ่มต้นเซิร์ฟเวอร์ที่พอร์ต 8080
 	r.Run(":8080")
@@ -222,17 +231,14 @@ func main() {
 // ฟังก์ชัน login ที่ตรวจสอบอีเมลและรหัสผ่าน
 func login(db *gorm.DB, email, password string) (*model.Customer, error) {
 	var customer model.Customer
-
 	// ค้นหาผู้ใช้จากอีเมล
 	if err := db.Where("email = ?", email).First(&customer).Error; err != nil {
 		return nil, fmt.Errorf("customer not found: %w", err)
 	}
-
 	// ตรวจสอบรหัสผ่านที่ถูกแฮช
 	if err := checkPasswordHash(password, customer.Password); err != nil {
 		return nil, fmt.Errorf("incorrect password")
 	}
-
 	// ถ้าข้อมูลถูกต้อง ให้ส่งข้อมูลผู้ใช้กลับ
 	return &customer, nil
 }
