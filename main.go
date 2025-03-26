@@ -5,14 +5,13 @@ import (
 	"log"
 	"net/http"
 
+	"fingo/model"
+
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"fingo/model" // ปรับตามโครงสร้างโปรเจ็กต์ของคุณ
 )
-
-// โครงสร้างข้อมูลที่ไม่รวมรหัสผ่าน
-
 
 func main() {
 	// เชื่อมต่อกับฐานข้อมูล MySQL
@@ -106,8 +105,67 @@ func main() {
 		c.JSON(http.StatusOK, customerResponse)
 	})
 
+
+
+	// สร้าง endpoint สำหรับการสมัครสมาชิก (การเพิ่มข้อมูลลูกค้า)
+	r.POST("/auth/register", func(c *gin.Context) {
+		var registerRequest struct {
+			FirstName string `json:"first_name"`
+			LastName  string `json:"last_name"`
+			Email     string `json:"email"`
+			Password  string `json:"password"`
+			Phone     string `json:"phone"`
+			Address   string `json:"address"`
+		}
+
+		// รับข้อมูลจาก request body
+		if err := c.ShouldBindJSON(&registerRequest); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+			return
+		}
+
+		// แฮชรหัสผ่านที่ได้รับจาก request
+		hashedPassword, err := hashPassword(registerRequest.Password)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+			return
+		}
+
+		// สร้างลูกค้ารายใหม่
+		customer := model.Customer{
+			FirstName: registerRequest.FirstName,
+			LastName:  registerRequest.LastName,
+			Email:     registerRequest.Email,
+			Password:  hashedPassword, // เก็บรหัสผ่านที่แฮชแล้ว
+			PhoneNumber:	registerRequest.Phone,
+			Address:   registerRequest.Address,
+		}
+
+		// เก็บข้อมูลผู้ใช้ใหม่ในฐานข้อมูล
+		if err := db.Create(&customer).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register customer"})
+			return
+		}
+
+		// ส่งข้อมูลลูกค้ากลับโดยไม่รวมรหัสผ่าน
+		customerResponse := model.CustomerResponse{
+			CustomerID:  customer.CustomerID,
+			FirstName:   customer.FirstName,
+			LastName:    customer.LastName,
+			Email:       customer.Email,
+			PhoneNumber: customer.PhoneNumber,
+			Address:     customer.Address,
+			CreatedAt:   customer.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:   customer.UpdatedAt.Format("2006-01-02 15:04:05"),
+		}
+
+		// ส่งข้อมูลลูกค้าหลังจากลงทะเบียน
+		c.JSON(http.StatusOK, customerResponse)
+	})
 	// เริ่มต้นเซิร์ฟเวอร์ที่พอร์ต 8080
 	r.Run(":8080")
+
+
 }
 
 // ฟังก์ชัน login ที่ตรวจสอบอีเมลและรหัสผ่าน
@@ -119,11 +177,27 @@ func login(db *gorm.DB, email, password string) (*model.Customer, error) {
 		return nil, fmt.Errorf("customer not found: %w", err)
 	}
 
-	// ตรวจสอบรหัสผ่าน
-	if customer.Password != password {
+	// ตรวจสอบรหัสผ่านที่ถูกแฮช
+	if err := checkPasswordHash(password, customer.Password); err != nil {
 		return nil, fmt.Errorf("incorrect password")
 	}
 
 	// ถ้าข้อมูลถูกต้อง ให้ส่งข้อมูลผู้ใช้กลับ
 	return &customer, nil
+}
+
+// ฟังก์ชันที่ใช้แฮชรหัสผ่าน
+func hashPassword(password string) (string, error) {
+	// ใช้ bcrypt ในการแฮชรหัสผ่าน
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hashedPassword), nil
+}
+
+// ฟังก์ชันที่ใช้ตรวจสอบรหัสผ่านที่ถูกแฮช
+func checkPasswordHash(password, hash string) error {
+	// ใช้ bcrypt.CompareHashAndPassword เพื่อตรวจสอบว่า hash กับรหัสผ่านตรงกันหรือไม่
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 }
